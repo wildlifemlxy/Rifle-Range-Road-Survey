@@ -4,6 +4,7 @@ import {
   fetchSurveyLocations,
   fetchSpeciesList,
   buildSpeciesStatusLookup,
+  lookupSpeciesStatus,
 } from '../config/mapConfig'
 import { getSocket } from '../config/socket'
 
@@ -94,7 +95,24 @@ export function useSurveyFilters(surveyType = 'Regular') {
     }
   }, [])
 
-  const fieldValues = useMemo(() => buildFieldValues(locations), [locations])
+  // Rope Bridge/External sheets don't carry their own Taxa/Target Species columns, so fall back to the
+  // Species List tab's lookup (Table A by scientific name, Table B by common name) - it covers every
+  // survey type since it's keyed off the species, not the sighting.
+  const enrichedLocations = useMemo(() => {
+    if (speciesStatusLookup.size === 0) return locations
+    return locations.map((location) => {
+      if (location.taxa && location.targetSpecies) return location
+      const status = lookupSpeciesStatus(speciesStatusLookup, location)
+      if (!status) return location
+      return {
+        ...location,
+        taxa: location.taxa || status.taxa || '',
+        targetSpecies: location.targetSpecies || status.targetSpecies || '',
+      }
+    })
+  }, [locations, speciesStatusLookup])
+
+  const fieldValues = useMemo(() => buildFieldValues(enrichedLocations), [enrichedLocations])
 
   // "side" (the Directions legend) defaults to everything selected/shown, same as before.
   // The button-group filter fields default to nothing selected, meaning no restriction until
@@ -142,7 +160,7 @@ export function useSurveyFilters(surveyType = 'Regular') {
   const filteredLocations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
 
-    return locations.filter((location) => {
+    return enrichedLocations.filter((location) => {
       const sideSet = activeValues.side
       if (sideSet && !sideSet.has(location.side)) return false
 
@@ -156,10 +174,10 @@ export function useSurveyFilters(surveyType = 'Regular') {
       if (!query) return true
       return Object.values(location).some((value) => String(value ?? '').toLowerCase().includes(query))
     })
-  }, [locations, activeValues, searchQuery])
+  }, [enrichedLocations, activeValues, searchQuery])
 
   return {
-    locations,
+    locations: enrichedLocations,
     fieldValues,
     activeValues,
     toggleValue,

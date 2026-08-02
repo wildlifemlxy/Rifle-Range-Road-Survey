@@ -82,12 +82,30 @@ export const fetchSpeciesList = async () => {
 };
 
 // Looks up species status by scientific name (case-insensitive, trimmed) for quick per-observation access.
+// Also indexed by common name (scientific name wins on collision) so Table B's higher-taxonomic-level
+// rows - recorded as a placeholder common name like "Unknown Bat" rather than a real scientific name,
+// e.g. "Chiroptera" - are still reachable from a sighting that only has that common name.
 export const buildSpeciesStatusLookup = (species) => {
   const lookup = new Map();
   for (const entry of species) {
-    lookup.set(entry.scientificName.trim().toLowerCase(), entry);
+    const commonKey = entry.commonName?.trim().toLowerCase();
+    if (commonKey) lookup.set(commonKey, entry);
+  }
+  for (const entry of species) {
+    const sciKey = entry.scientificName?.trim().toLowerCase();
+    if (sciKey) lookup.set(sciKey, entry);
   }
   return lookup;
+};
+
+// Looks up a location's species entry, trying its scientific name first (Table A) then falling back
+// to its common name (Table B's "Unknown X" placeholders, which sightings only ever record by that name).
+export const lookupSpeciesStatus = (speciesStatusLookup, location) => {
+  const sciKey = location.scientificName?.trim().toLowerCase();
+  if (sciKey && speciesStatusLookup.has(sciKey)) return speciesStatusLookup.get(sciKey);
+  const commonKey = location.commonName?.trim().toLowerCase();
+  if (commonKey && speciesStatusLookup.has(commonKey)) return speciesStatusLookup.get(commonKey);
+  return undefined;
 };
 
 // Marker/legend color per "which side of the road" value, matching the sheet's own categories.
@@ -103,7 +121,7 @@ export const SIDE_COLORS = {
 // panel, so Rope-Bridge-only fields (e.g. crossingType) simply don't appear while viewing Regular data,
 // and vice versa - no need to branch this list by survey type.
 export const FILTERABLE_FIELDS = [
-  { field: "taxa", label: "Taxa", group: "Species" },
+  { field: "taxa", label: "Taxanomy", group: "Species" },
   { field: "targetSpecies", label: "Target Species", group: "Species" },
   { field: "identified", label: "Identified", group: "Species" },
   { field: "isRoadkill", label: "Roadkill", group: "Species" },
@@ -128,7 +146,7 @@ export const TABLE_COLUMNS = [
   { field: "commonName", label: "Common Name" },
   { field: "scientificName", label: "Scientific Name" },
   { field: "count", label: "Count" },
-  { field: "taxa", label: "Taxa" },
+  { field: "taxa", label: "Taxanomy" },
   { field: "crossingType", label: "Crossing Type" },
   { field: "targetSpecies", label: "Target Species" },
   { field: "identified", label: "Identified?" },

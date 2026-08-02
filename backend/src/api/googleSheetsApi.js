@@ -30,11 +30,15 @@ const SURVEY_LOCATIONS_GIDS = {
   External: "1959171440",
 };
 
+// Spreadsheet formula-error placeholders (e.g. a VLOOKUP that found no match) that sometimes end up
+// baked into the exported CSV as literal text - never a real value, so treated the same as blank.
+const isFormulaError = (value) => /^#(n\/a|name\?|value!|ref!|div\/0!|null!|num!)$/i.test((value || "").trim());
+
 // Reads the first non-blank value among a list of possible header names, since the sheets
 // phrase some of the same logical question slightly differently (or don't ask it at all).
 const pick = (record, keys) => {
   for (const key of keys) {
-    if (record[key]) return record[key];
+    if (record[key] && !isFormulaError(record[key])) return record[key];
   }
   return "";
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SIDE_COLORS } from "../../config/mapConfig";
+import { SIDE_COLORS, lookupSpeciesStatus } from "../../config/mapConfig";
 import "../../css/ObservationDetails.css";
 
 const TABS = ["Overview", "Survey", "Location"];
@@ -10,9 +10,7 @@ const TABS = ["Overview", "Survey", "Location"];
 // Regular rows, and vice versa for Taxa/Roadkill?/Coords/Nearest Landmarks.
 const TAB_FIELDS = {
   Overview: [
-    { label: "Taxa", get: (l) => l.taxa },
     { label: "Crossing Type", get: (l) => l.crossingType },
-    { label: "Target Species", get: (l) => l.targetSpecies },
     { label: "Identified?", get: (l) => l.identified },
     { label: "Count", get: (l) => String(l.count || "") },
     { label: "Roadkill?", get: (l) => l.isRoadkill },
@@ -90,7 +88,7 @@ function ObservationDetails({ location, onClose, speciesStatusLookup }) {
   if (!displayedLocation) return null;
 
   const title = displayedLocation.commonName || displayedLocation.scientificName || "Observation";
-  const status = speciesStatusLookup.get(displayedLocation.scientificName.trim().toLowerCase());
+  const status = lookupSpeciesStatus(speciesStatusLookup, displayedLocation);
 
   return (
     <div className={`observation-details${isSwitching ? " observation-details-switching" : ""}`}>
@@ -119,22 +117,36 @@ function ObservationDetails({ location, onClose, speciesStatusLookup }) {
         </div>
       )}
 
-      {(status?.srdb3Status || status?.iucnStatus) && (
-        <div className="observation-details-status-row">
-          {status?.srdb3Status && (
+      {(() => {
+        // Rope Bridge/External rows don't carry their own Taxa/Target Species columns (see TAB_FIELDS
+        // comment above), and species not on the Species List tab at all (e.g. "Unknown Squirrel", never
+        // identified past its Taxa) have no status entry either - always show the row anyway, with
+        // "Not Listed" standing in for whichever of the four fields have no data, rather than hiding it.
+        const taxa = displayedLocation.taxa || status?.taxa || "Not Listed";
+        const targetSpecies = displayedLocation.targetSpecies || status?.targetSpecies || "Not Listed";
+        const srdb3Status = status?.srdb3Status || "Not Listed";
+        const iucnStatus = status?.iucnStatus || "Not Listed";
+        return (
+          <div className="observation-details-status-row">
+            <div className="observation-details-field">
+              <span className="observation-details-label">Taxanomy</span>
+              <p className="observation-details-status-value">{taxa}</p>
+            </div>
+            <div className="observation-details-field">
+              <span className="observation-details-label">Target Species</span>
+              <p className="observation-details-status-value">{targetSpecies}</p>
+            </div>
             <div className="observation-details-field">
               <span className="observation-details-label">SRDB3 Status</span>
-              <p className="observation-details-status-value">{status.srdb3Status}</p>
+              <p className="observation-details-status-value">{srdb3Status}</p>
             </div>
-          )}
-          {status?.iucnStatus && (
             <div className="observation-details-field">
               <span className="observation-details-label">IUCN Status</span>
-              <p className="observation-details-status-value">{status.iucnStatus}</p>
+              <p className="observation-details-status-value">{iucnStatus}</p>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       <div className="observation-details-tab-row">
         {TABS.map((tab) => (

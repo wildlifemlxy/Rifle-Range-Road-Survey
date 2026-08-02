@@ -153,6 +153,7 @@
 
 .observation-details-status-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 12px;
   padding: 8px 10px;
