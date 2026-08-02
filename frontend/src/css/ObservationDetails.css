@@ -1,0 +1,216 @@
+/* Docks beside the map, inside .map-row, as a fixed-width flex sibling. */
+.observation-details {
+  flex: 0 0 320px;
+  width: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-y: auto;
+  text-align: left;
+  box-sizing: border-box;
+  transition: opacity 0.15s ease;
+}
+
+/* Shown briefly while the next observation's image preloads - content stays as the previous
+   observation until it's ready, so nothing flashes a broken/mismatched image. */
+.observation-details-switching {
+  opacity: 0.6;
+}
+
+.observation-details-image {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.observation-details-image-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.observation-details-image-wrap .observation-details-image {
+  margin-bottom: 0;
+  display: block;
+}
+
+.observation-details-image-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.observation-details-image-expand:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.observation-details-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: zoom-out;
+}
+
+.observation-details-lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.observation-details-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.observation-details-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.observation-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.observation-details-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.observation-details-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.observation-details-subtitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text);
+}
+
+.observation-details-field {
+  margin-bottom: 12px;
+}
+
+.observation-details-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.observation-details-field p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.observation-details-status-value {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.observation-details-status-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+}
+
+.observation-details-status-row .observation-details-field {
+  margin-bottom: 0;
+}
+
+.observation-details-tab-row {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.observation-details-tab {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.observation-details-tab:hover {
+  color: var(--text-h);
+}
+
+.observation-details-tab-active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent-border);
+  font-weight: 600;
+}
+
+.observation-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+
+.observation-details-remarks {
+  margin-top: 4px;
+  padding: 10px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+}
+
+.observation-details-remarks p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-h);
+}

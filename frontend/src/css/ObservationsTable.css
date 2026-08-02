@@ -1,0 +1,146 @@
+.observations-table {
+  flex: none;
+  width: 100%;
+  margin-top: 16px;
+  box-sizing: border-box;
+}
+
+.observations-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.observations-table-header h3 {
+  margin: 0;
+}
+
+.observations-table-export-btn {
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.observations-table-export-btn:hover {
+  background: var(--border);
+}
+
+.observations-table-grid {
+  height: 560px;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.export-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.export-dialog {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-dialog h4 {
+  margin: 0;
+}
+
+.export-dialog-tables {
+  display: flex;
+  gap: 8px;
+}
+
+.export-dialog-table-btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.export-dialog-table-btn-active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.export-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.export-dialog-actions button {
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.export-dialog-cancel {
+  background: var(--code-bg);
+  color: var(--text);
+}
+
+.export-dialog-confirm {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.export-dialog-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Rope Bridge's header includes several short Yes/No-style columns (Crossing Type, On Rope Bridge?) where
+   the vertical divider between header cells looks cluttered - drop it for that survey type only. In the
+   legacy Alpine theme (ag-theme-alpine.css) this divider isn't driven by the --ag-header-column-separator-*
+   variables (those only apply to the newer Theming API) - it's a ::after pseudo-element on the column
+   resize handle, so it has to be hidden directly. */
+.observations-table-grid-no-header-border {
+  --ag-header-column-separator-display: none;
+}
+
+.observations-table-grid-no-header-border .ag-header-cell-resize::after {
+  display: none;
+}
+
+/* Maps ag-grid's theme variables onto this app's existing light/dark palette (index.css) instead of
+   the default Alpine light theme, so the grid matches the rest of the UI in both color schemes. */
+.observations-table .ag-theme-alpine {
+  --ag-background-color: var(--bg);
+  --ag-foreground-color: var(--text);
+  --ag-header-background-color: var(--code-bg);
+  --ag-header-foreground-color: var(--text-h);
+  --ag-border-color: var(--border);
+  --ag-row-hover-color: var(--border);
+  --ag-odd-row-background-color: var(--bg);
+  --ag-font-family: inherit;
+  --ag-font-size: 13px;
+}

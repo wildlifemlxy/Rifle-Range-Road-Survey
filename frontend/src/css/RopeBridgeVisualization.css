@@ -1,0 +1,283 @@
+.rope-bridge-viz {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Both bridges live together inside this one shared block, stacked top to bottom. */
+.rope-bridge-scene-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Lets the whole bridge illustration + its overlaid markers scroll together as one unit whenever the
+   panel is too narrow to show a legible-sized bridge, instead of both shrinking down to near-nothing.
+   overflow-x: scroll (not auto) so the scrollbar track is always visible, not just on hover/overflow.
+   Also the container-query context for cqw units (e.g. the off-bridge title's font-size below), since
+   this box's own width (unlike its padded children) matches the bridges' 1000-unit SVG viewBox 1:1. */
+.rope-bridge-scene-scroll {
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  container-type: inline-size;
+}
+
+.rope-bridge-scene-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.rope-bridge-scene-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rope-bridge-scene-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Wraps a bridge's illustration so the marker strip below can be laid on top of it, positioned in
+   percentages of this box - which scales with the SVG's own aspect-ratio at any panel width. Given a
+   fixed minimum width so the bridge (and the markers riding on it) never shrink below a readable size. */
+.rope-bridge-stage {
+  position: relative;
+  min-width: 640px;
+}
+
+/* The scrollable strip of chips sits directly over the deck line, so the markers visually look like
+   they're walking on the bridge deck itself, with nothing drawn behind them. Top/height are centered on
+   the deck's fixed y (45% of the 160-tall viewBox), leaving enough room below for the track's own
+   scrollbar to render fully instead of being clipped off. Spans the full stage width (not inset to the
+   deck's own 16.5%-83.5% span) so the crossing row gets all the available width to scroll through. */
+.rope-bridge-deck-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 37%;
+  height: 16%;
+  display: flex;
+  align-items: center;
+}
+
+.rope-bridge-deck-overlay .rope-bridge-marker-track-wrap {
+  width: 100%;
+}
+
+.rope-bridge-deck-overlay .rope-bridge-marker-track {
+  padding: 2px 10px;
+}
+
+.rope-bridge-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1000 / 160;
+}
+
+.rope-bridge-cable {
+  fill: none;
+  stroke: #000;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+/* Upright anchor post at each end of the span, where the cable/deck actually terminate - thicker than
+   the cable/hangers so it visibly reads as a load-bearing post, not just another rope line. Color comes
+   from each bridge's own inline gradient (stroke="url(#...)" in the JSX), not from here. */
+.rope-bridge-post {
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+/* A thin solid glint offset to one side of each post, suggesting light on a rounded (not flat) post. */
+.rope-bridge-post-highlight {
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.rope-bridge-hanger {
+  stroke: #7a4a23;
+  stroke-width: 1.3;
+  opacity: 0.85;
+}
+
+.rope-bridge-deck {
+  fill: none;
+  stroke: #000;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.rope-bridge-deck-tie {
+  stroke: #c8a165;
+  stroke-width: 1.1;
+  opacity: 0.85;
+}
+
+.rope-bridge-label {
+  /* Fixed (not theme-linked) colors: this scene has its own permanent light-sky/dark-canopy palette
+     regardless of the app's light/dark mode, so --text-h (which flips to near-white in dark mode) would
+     make this label unreadable against the light sky background it actually sits on. */
+  fill: #1a1f16;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* Unboxed, just like the on-bridge rows - no border/background card around the icon strip. */
+.rope-bridge-marker-group {
+  min-width: 0;
+}
+
+.rope-bridge-marker-group-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  /* Same fixed (not theme-linked) color as the "Bridge A"/"Bridge B" SVG labels, so this title reads as
+     the exact same word style rather than the app's usual (theme-linked) heading color. */
+  color: #1a1f16;
+  /* "Bridge A"/"Bridge B" are SVG text at font-size:15 in a 1000-unit viewBox, so they visually scale
+     up/down with the bridge's own rendered width - a fixed px size here would drift out of sync as the
+     panel resizes. 1.5cqw (15/1000 of the container's own inline size) tracks that same scale; the 15px
+     before it is a fallback for browsers without container query unit support. */
+  font-size: 15px;
+  font-size: 1.5cqw;
+  /* Matches the bridge labels' own x position (X_LEFT + postInset + 14 = 20 out of the 1000-unit span,
+     i.e. 2% of this box's width), so this title lines up with "Bridge A"/"Bridge B" instead of flush left. */
+  margin-left: 13px;
+  margin-left: 2cqw;
+}
+
+/* Same fixed min-width as the bridges' own stage, and now the same full 100% width (no inset), so this
+   row's markers get exactly as much horizontal room as the bridges' crossing rows. */
+.rope-bridge-marker-group-body {
+  min-width: 640px;
+}
+
+.rope-bridge-marker-track-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Native scrollbars can render as an invisible "overlay" on some browsers/OSes, so they're hidden here -
+   .rope-bridge-marker-scrollbar below draws a bar that is always visible instead. */
+.rope-bridge-marker-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.rope-bridge-marker-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Always-visible, directly-draggable custom scrollbar: a distinct groove + solid thumb (not just a faint
+   border-colored line), clickable/draggable on its own so scrolling never requires hovering the bridge
+   itself. Opacity is baked into the groove's own rgba background rather than the element's `opacity`,
+   since `opacity` would also fade the thumb drawn inside it. touch-action: none stops touch drags from
+   scrolling the page instead of the bar. */
+.rope-bridge-marker-scrollbar {
+  position: relative;
+  flex: 0 0 auto;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.rope-bridge-marker-scrollbar:active {
+  cursor: grabbing;
+}
+
+.rope-bridge-marker-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* left/width are set inline in px-relative % of the bar itself, not `transform` - translateX's percentage
+     resolves against the thumb's OWN (narrower) width, which left a gap short of the true scroll end. */
+  background: var(--text);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.rope-bridge-marker-chip {
+  flex: 0 0 auto;
+  width: 76.5px;
+  height: 76.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.rope-bridge-marker-chip:hover,
+.rope-bridge-marker-chip:focus-visible {
+  transform: scale(1.15);
+}
+
+.rope-bridge-marker-chip-image {
+  width: 58.5px;
+  height: 58.5px;
+  object-fit: contain;
+}
+
+.rope-bridge-marker-chip-default {
+  font-size: 40.5px;
+  line-height: 1;
+}
+
+/* The hanging deck sways gently, as if stirred by wind - transform-origin defaults to the SVG
+   viewport/user-unit space for group elements, so this rotates around the bridge's own coordinates. */
+.rope-bridge-sway {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rope-bridge-sway 4.5s ease-in-out infinite;
+}
+
+@keyframes rope-bridge-sway {
+  0%,
+  100% {
+    transform: rotate(-0.5deg);
+  }
+  50% {
+    transform: rotate(0.5deg);
+  }
+}
+
+.rope-bridge-empty-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  background: rgba(20, 30, 20, 0.35);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+}

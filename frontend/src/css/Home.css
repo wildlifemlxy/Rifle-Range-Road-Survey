@@ -1,0 +1,47 @@
+/* Overrides the shared #root max-width (from index.css) so the map page always fills the viewport. */
+#root:has(#map-page) {
+  width: 100%;
+  max-width: 100%;
+  border-inline: none;
+}
+
+#map-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  min-height: 100vh;
+  box-sizing: border-box;
+
+  h1 {
+    margin: 0;
+    color: var(--text-h);
+  }
+}
+
+.overview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.map-row {
+  display: flex;
+  gap: 16px;
+  min-height: 640px;
+}
+
+.map-container {
+  flex: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.map-error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
