@@ -1,12 +1,18 @@
 import axios from "axios";
 
+// Vite's dev server proxies /api to localhost:3001, but production (Azure Static Web Apps) has no
+// such proxy, so both environments must point at the backend explicitly.
+const API_BASE_URL = window.location.hostname.includes("localhost")
+  ? `${window.location.protocol}//${window.location.hostname}:3001`
+  : "https://rrr-backend-dehee0etbwefffbv.southeastasia-01.azurewebsites.net";
+
 // API key is fetched from the backend at runtime so it never ships in the bundle.
 let apiKeyPromise = null;
 
 export const fetchMapApiKey = async () => {
   if (!apiKeyPromise) {
     apiKeyPromise = (async () => {
-      const { data } = await axios.post("/api/map/config");
+      const { data } = await axios.post(`${API_BASE_URL}/api/map/config`);
 
       if (!data.success) {
         throw new Error(data.error || "Failed to fetch map config");
@@ -45,7 +51,7 @@ const spreadOverlappingLocations = (locations) => {
 
 // Survey observation coordinates (columns K & L of the survey sheet).
 export const fetchSurveyLocations = async (surveyType = "Regular") => {
-  const { data } = await axios.post("/api/survey-locations", { surveyType });
+  const { data } = await axios.post(`${API_BASE_URL}/api/survey-locations`, { surveyType });
 
   if (!data.success) {
     throw new Error(data.error || "Failed to fetch survey locations");
@@ -61,7 +67,7 @@ export const fetchSurveyLocations = async (surveyType = "Regular") => {
 
 // The sheet's own pre-computed summary stats (Total Surveys, Unique Species, etc.) for the given survey type.
 export const fetchSurveySummary = async (surveyType = "Regular") => {
-  const { data } = await axios.post("/api/survey-summary", { surveyType });
+  const { data } = await axios.post(`${API_BASE_URL}/api/survey-summary`, { surveyType });
 
   if (!data.success) {
     throw new Error(data.error || "Failed to fetch survey summary");
@@ -150,7 +156,7 @@ export const buildSurveySummaryItems = (locations) => {
 
 // The sheet's "Species List" tab, used as the conservation-status reference for each observation.
 export const fetchSpeciesList = async () => {
-  const { data } = await axios.post("/api/species-list");
+  const { data } = await axios.post(`${API_BASE_URL}/api/species-list`);
 
   if (!data.success) {
     throw new Error(data.error || "Failed to fetch species list");
