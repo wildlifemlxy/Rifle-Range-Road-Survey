@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Rifle Range Road Project - Node + Express Project
+name: Build and deploy Node.js app to Azure Web App - rrr-backend
 
 on:
   push:
@@ -24,16 +24,16 @@ jobs:
           node-version: '24.x'
 
       - name: npm install, build, and test
-        working-directory: ./backend
         run: |
           npm install
           npm run build --if-present
+          npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: backend
+          path: .
 
   deploy:
     runs-on: ubuntu-latest
@@ -51,9 +51,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9AAECD5F5F594393B6D9751A88695F6E }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_76A0BD7F29B04FFD82693E7C16CF24C4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C019F9E554E44097A727AE22D73AFA19 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A071957C94C64D1D8D51F8212C9EDAC6 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_1082139CE5624F479E9F5D8087A2CB1D }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_92A88F9CE7624DC088265A6B6299B165 }}
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
