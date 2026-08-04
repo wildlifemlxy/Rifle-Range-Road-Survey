@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Component } from "react";
 import { SIDE_COLORS, lookupSpeciesStatus } from "../../config/mapConfig";
 import "../../css/ObservationDetails.css";
 
@@ -37,171 +37,175 @@ const TAB_FIELDS = {
   ],
 };
 
-function ObservationDetails({ location, onClose, speciesStatusLookup }) {
-  const [isImageFullscreen, setIsImageFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Overview");
-  // Holds the observation actually being displayed - only swapped to `location` once its image (if
-  // any) has finished loading, so switching between observations never flashes a broken/mismatched image.
-  const [displayedLocation, setDisplayedLocation] = useState(location);
-  const [isSwitching, setIsSwitching] = useState(false);
+class ObservationDetails extends Component {
+  // Holds the observation actually being displayed - only swapped to the `location` prop once its image
+  // (if any) has finished loading, so switching between observations never flashes a broken/mismatched image.
+  state = {
+    isImageFullscreen: false,
+    activeTab: "Overview",
+    displayedLocation: this.props.location,
+    isSwitching: false,
+  };
 
-  useEffect(() => {
-    // Closing the panel, or having nothing to wait on, applies immediately.
-    if (!location || !location.imageUrl) {
-      setDisplayedLocation(location);
-      setActiveTab("Overview");
-      setIsSwitching(false);
+  componentDidMount() {
+    this.syncDisplayedLocation(this.props.location);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.location !== this.props.location) {
+      this.syncDisplayedLocation(this.props.location);
+    }
+  }
+
+  componentWillUnmount() {
+    this._cancelPreload?.();
+  }
+
+  // Only gates on the image preload when swapping from an already-open observation to another - that's
+  // the case that can flash a stale/mismatched image. Closing the panel, having nothing to wait on, or
+  // opening it from closed (nothing previous on screen to protect) all apply immediately.
+  syncDisplayedLocation(location) {
+    this._cancelPreload?.();
+
+    if (!location || !location.imageUrl || !this.state.displayedLocation) {
+      this.setState({ displayedLocation: location, activeTab: "Overview", isSwitching: false });
       return;
     }
 
-    // Only gate on the image preload when swapping from an already-open observation to another -
-    // that's the case that can flash a stale/mismatched image. Opening the panel from closed shows
-    // immediately (there's nothing previous on screen to protect), same as before.
-    // (Intentionally reading `displayedLocation` here without listing it as a dependency: it should
-    // reflect the value from before this change, not re-run this effect on its own updates.)
-    if (!displayedLocation) {
-      setDisplayedLocation(location);
-      setActiveTab("Overview");
-      setIsSwitching(false);
-      return;
-    }
-
-    setIsSwitching(true);
+    this.setState({ isSwitching: true });
     let cancelled = false;
+    this._cancelPreload = () => {
+      cancelled = true;
+    };
     const preload = new Image();
     const finish = () => {
       if (cancelled) return;
-      setDisplayedLocation(location);
-      setActiveTab("Overview");
-      setIsSwitching(false);
+      this.setState({ displayedLocation: location, activeTab: "Overview", isSwitching: false });
     };
     preload.onload = finish;
     preload.onerror = finish;
     preload.src = location.imageUrl;
+  }
 
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
+  render() {
+    const { onClose, speciesStatusLookup } = this.props;
+    const { isImageFullscreen, activeTab, displayedLocation, isSwitching } = this.state;
 
-  if (!displayedLocation) return null;
+    if (!displayedLocation) return null;
 
-  const title = displayedLocation.commonName || displayedLocation.scientificName || "Observation";
-  const status = lookupSpeciesStatus(speciesStatusLookup, displayedLocation);
+    const title = displayedLocation.commonName || displayedLocation.scientificName || "Observation";
+    const status = lookupSpeciesStatus(speciesStatusLookup, displayedLocation);
 
-  return (
-    <div className={`observation-details${isSwitching ? " observation-details-switching" : ""}`}>
-      <div className="observation-details-header">
-        <h3>{title}</h3>
-        <button className="observation-details-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
-      </div>
+    // Rope Bridge/External rows don't carry their own Taxa/Target Species columns (see TAB_FIELDS
+    // comment above), and species not on the Species List tab at all (e.g. "Unknown Squirrel", never
+    // identified past its Taxa) have no status entry either - always show the row anyway, with
+    // "Not Listed" standing in for whichever of the four fields have no data, rather than hiding it.
+    const taxa = displayedLocation.taxa || status?.taxa || "";
+    const targetSpecies = displayedLocation.targetSpecies || status?.targetSpecies || "";
+    const srdb3Status = status?.srdb3Status || "";
+    const iucnStatus = status?.iucnStatus || "";
 
-      {displayedLocation.commonName && displayedLocation.scientificName && (
-        <p className="observation-details-subtitle">{displayedLocation.scientificName}</p>
-      )}
-
-      {displayedLocation.imageUrl && (
-        <div className="observation-details-image-wrap">
-          <img className="observation-details-image" src={displayedLocation.imageUrl} alt={title} loading="lazy" />
-          <button
-            type="button"
-            className="observation-details-image-expand"
-            onClick={() => setIsImageFullscreen(true)}
-            aria-label="View image full screen"
-          >
-            ⛶
-          </button>
-        </div>
-      )}
-
-      {(() => {
-        // Rope Bridge/External rows don't carry their own Taxa/Target Species columns (see TAB_FIELDS
-        // comment above), and species not on the Species List tab at all (e.g. "Unknown Squirrel", never
-        // identified past its Taxa) have no status entry either - always show the row anyway, with
-        // "Not Listed" standing in for whichever of the four fields have no data, rather than hiding it.
-        const taxa = displayedLocation.taxa || status?.taxa || "Not Listed";
-        const targetSpecies = displayedLocation.targetSpecies || status?.targetSpecies || "Not Listed";
-        const srdb3Status = status?.srdb3Status || "Not Listed";
-        const iucnStatus = status?.iucnStatus || "Not Listed";
-        return (
-          <div className="observation-details-status-row">
-            <div className="observation-details-field">
-              <span className="observation-details-label">Taxanomy</span>
-              <p className="observation-details-status-value">{taxa}</p>
-            </div>
-            <div className="observation-details-field">
-              <span className="observation-details-label">Target Species</span>
-              <p className="observation-details-status-value">{targetSpecies}</p>
-            </div>
-            <div className="observation-details-field">
-              <span className="observation-details-label">SRDB3 Status</span>
-              <p className="observation-details-status-value">{srdb3Status}</p>
-            </div>
-            <div className="observation-details-field">
-              <span className="observation-details-label">IUCN Status</span>
-              <p className="observation-details-status-value">{iucnStatus}</p>
-            </div>
-          </div>
-        );
-      })()}
-
-      <div className="observation-details-tab-row">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={`observation-details-tab${activeTab === tab ? " observation-details-tab-active" : ""}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div className="observation-details-grid">
-        {activeTab === "Location" && (
-          <div className="observation-details-field">
-            <span className="observation-details-label">Side of Road</span>
-            <p style={{ color: SIDE_COLORS[displayedLocation.side] }}>{displayedLocation.side}</p>
-          </div>
-        )}
-        {TAB_FIELDS[activeTab].map(({ label, get }) => {
-          const value = get(displayedLocation);
-          if (!value) return null;
-          return (
-            <div className="observation-details-field" key={label}>
-              <span className="observation-details-label">{label}</span>
-              <p>{value}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {activeTab === "Overview" && displayedLocation.remarks && (
-        <div className="observation-details-remarks">
-          <span className="observation-details-label">Behaviours / Remarks</span>
-          <p>{displayedLocation.remarks}</p>
-        </div>
-      )}
-
-      {isImageFullscreen && displayedLocation.imageUrl && (
-        <div className="observation-details-lightbox" onClick={() => setIsImageFullscreen(false)}>
-          <button
-            type="button"
-            className="observation-details-lightbox-close"
-            onClick={() => setIsImageFullscreen(false)}
-            aria-label="Close full screen image"
-          >
+    return (
+      <div className={`observation-details${isSwitching ? " observation-details-switching" : ""}`}>
+        <div className="observation-details-header">
+          <h3>{title}</h3>
+          <button className="observation-details-close" onClick={onClose} aria-label="Close">
             ×
           </button>
-          <img src={displayedLocation.imageUrl} alt={title} className="observation-details-lightbox-image" />
         </div>
-      )}
-    </div>
-  );
+
+        {displayedLocation.commonName && displayedLocation.scientificName && (
+          <p className="observation-details-subtitle">{displayedLocation.scientificName}</p>
+        )}
+
+        {displayedLocation.imageUrl && (
+          <div className="observation-details-image-wrap">
+            <img className="observation-details-image" src={displayedLocation.imageUrl} alt={title} loading="lazy" />
+            <button
+              type="button"
+              className="observation-details-image-expand"
+              onClick={() => this.setState({ isImageFullscreen: true })}
+              aria-label="View image full screen"
+            >
+              ⛶
+            </button>
+          </div>
+        )}
+
+        <div className="observation-details-status-row">
+          <div className="observation-details-field">
+            <span className="observation-details-label">Taxanomy</span>
+            <p className="observation-details-status-value">{taxa}</p>
+          </div>
+          <div className="observation-details-field">
+            <span className="observation-details-label">Target Species</span>
+            <p className="observation-details-status-value">{targetSpecies}</p>
+          </div>
+          <div className="observation-details-field">
+            <span className="observation-details-label">SRDB3 Status</span>
+            <p className="observation-details-status-value">{srdb3Status}</p>
+          </div>
+          <div className="observation-details-field">
+            <span className="observation-details-label">IUCN Status</span>
+            <p className="observation-details-status-value">{iucnStatus}</p>
+          </div>
+        </div>
+
+        <div className="observation-details-tab-row">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`observation-details-tab${activeTab === tab ? " observation-details-tab-active" : ""}`}
+              onClick={() => this.setState({ activeTab: tab })}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="observation-details-grid">
+          {activeTab === "Location" && (
+            <div className="observation-details-field">
+              <span className="observation-details-label">Side of Road</span>
+              <p style={{ color: SIDE_COLORS[displayedLocation.side] }}>{displayedLocation.side}</p>
+            </div>
+          )}
+          {TAB_FIELDS[activeTab].map(({ label, get }) => {
+            const value = get(displayedLocation);
+            if (!value) return null;
+            return (
+              <div className="observation-details-field" key={label}>
+                <span className="observation-details-label">{label}</span>
+                <p>{value}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {activeTab === "Overview" && displayedLocation.remarks && (
+          <div className="observation-details-remarks">
+            <span className="observation-details-label">Behaviours / Remarks</span>
+            <p>{displayedLocation.remarks}</p>
+          </div>
+        )}
+
+        {isImageFullscreen && displayedLocation.imageUrl && (
+          <div className="observation-details-lightbox" onClick={() => this.setState({ isImageFullscreen: false })}>
+            <button
+              type="button"
+              className="observation-details-lightbox-close"
+              onClick={() => this.setState({ isImageFullscreen: false })}
+              aria-label="Close full screen image"
+            >
+              ×
+            </button>
+            <img src={displayedLocation.imageUrl} alt={title} className="observation-details-lightbox-image" />
+          </div>
+        )}
+      </div>
+    );
+  }
 }
 
 export default ObservationDetails;

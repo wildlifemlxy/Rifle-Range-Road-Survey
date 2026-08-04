@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { Component } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import ExcelJS from "exceljs";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { TABLE_COLUMNS, SURVEY_TYPES, fetchSurveyLocations } from "../../config/mapConfig";
+import { TABLE_COLUMNS, SURVEY_TYPES, fetchSurveyLocations, surveyDateSortValue } from "../../config/mapConfig";
+import "../../css/Header.css";
 import "../../css/ObservationsTable.css";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -50,56 +51,64 @@ const downloadWorkbook = async (workbook, fileName) => {
   URL.revokeObjectURL(url);
 };
 
-function ObservationsTable({ locations, onSelectLocation, surveyType }) {
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [selectedTables, setSelectedTables] = useState(() => new Set());
+const columnDefs = [
+  {
+    headerName: "S/N",
+    // Row's position in the full (sorted/filtered) dataset, not just the current page, so
+    // numbering stays continuous when paging through the table.
+    valueGetter: (params) => (params.node ? params.node.rowIndex + 1 : ""),
+    width: 70,
+    sortable: false,
+    filter: false,
+    pinned: "left",
+  },
+  ...TABLE_COLUMNS.map(({ field, label }, index) => ({
+    field,
+    headerName: label,
+    valueFormatter: ({ data }) => (data ? formatCellValue(field, data) : ""),
+    // S/N above is pinned column 1 - pin the next two (Common Name, Scientific Name) so the
+    // first 3 columns overall stay in view while scrolling horizontally through the rest.
+    ...(index < 2 ? { pinned: "left" } : {}),
+    // Survey Date isn't in one consistent format across sheets (YYYY-MM-DD vs DD/MM/YYYY) - the default
+    // string comparator would sort External's dates out of chronological order, so use a date-aware one.
+    ...(field === "surveyDate" ? { comparator: (a, b) => surveyDateSortValue(a) - surveyDateSortValue(b) } : {}),
+  })),
+];
 
-  const columnDefs = useMemo(
-    () =>
-      TABLE_COLUMNS.map(({ field, label }) => ({
-        field,
-        headerName: label,
-        valueFormatter: ({ data, value }) => {
-          // lat/lng default to 0 when a sighting has no real coordinates (e.g. most Rope Bridge
-          // rows) - show blank instead of a misleading "0.000000".
-          if ((field === "lat" || field === "lng") && data && data.lat === 0 && data.lng === 0) return "";
-          if (typeof value === "number") return value.toFixed(field === "lat" || field === "lng" ? 6 : 0);
-          return value || "";
-        },
-      })),
-    []
-  );
+const defaultColDef = { sortable: true, resizable: false, filter: false };
 
-  const defaultColDef = useMemo(
-    () => ({ sortable: true, resizable: false, filter: false, minWidth: 120, flex: 1 }),
-    []
-  );
-
-  // "All records" is always offered as a page-size option so the default view can show everything.
-  const pageSizeOptions = useMemo(() => {
-    const total = locations.length || BASE_PAGE_SIZES[0];
-    return Array.from(new Set([...BASE_PAGE_SIZES, total])).sort((a, b) => a - b);
-  }, [locations.length]);
-
-  const handleRowClicked = (event) => {
-    if (event.data) onSelectLocation(event.data);
+class ObservationsTable extends Component {
+  state = {
+    isExportOpen: false,
+    isExporting: false,
+    selectedTables: new Set(),
   };
 
-  const toggleTable = (table) => {
-    setSelectedTables((prev) => {
-      const next = new Set(prev);
+  getPageSizeOptions() {
+    const total = this.props.locations.length || BASE_PAGE_SIZES[0];
+    return Array.from(new Set([...BASE_PAGE_SIZES, total])).sort((a, b) => a - b);
+  }
+
+  handleRowClicked = (event) => {
+    if (event.data) this.props.onSelectLocation?.(event.data);
+  };
+
+  toggleTable = (table) => {
+    this.setState((prev) => {
+      const next = new Set(prev.selectedTables);
       if (next.has(table)) next.delete(table);
       else next.add(table);
-      return next;
+      return { selectedTables: next };
     });
   };
 
   // Exports the whole (unfiltered) dataset for each selected survey type, ignoring any filters
   // currently applied on screen, since "export the table" means the full sheet, not the current view.
   // All selected tables go into one workbook, each as its own tab.
-  const handleExport = async () => {
-    setIsExporting(true);
+  handleExport = async () => {
+    const { locations, surveyType } = this.props;
+    const { selectedTables } = this.state;
+    this.setState({ isExporting: true });
     try {
       const workbook = new ExcelJS.Workbook();
 
@@ -132,87 +141,101 @@ function ObservationsTable({ locations, onSelectLocation, surveyType }) {
       }
 
       await downloadWorkbook(workbook, `Observation Report_${formatReportDate(new Date())}.xlsx`);
-      setIsExportOpen(false);
+      this.setState({ isExportOpen: false });
     } catch (err) {
       console.error(err);
     } finally {
-      setIsExporting(false);
+      this.setState({ isExporting: false });
     }
   };
 
-  return (
-    <div className="observations-table panel">
-      <div className="observations-table-header">
-        <h3>All Observations ({locations.length})</h3>
-        <button type="button" className="observations-table-export-btn" onClick={() => setIsExportOpen(true)}>
-          Export
-        </button>
-      </div>
-      <div
-        className={`ag-theme-alpine observations-table-grid${
-          surveyType === "Rope Bridge" ? " observations-table-grid-no-header-border" : ""
-        }`}
-      >
-        <AgGridReact
-          theme="legacy"
-          rowData={locations}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          pagination
-          paginationPageSize={locations.length || BASE_PAGE_SIZES[0]}
-          paginationPageSizeSelector={pageSizeOptions}
-          onRowClicked={handleRowClicked}
-          rowSelection={{ mode: "singleRow", checkboxes: false }}
-          suppressCellFocus
-          animateRows
-        />
-      </div>
+  render() {
+    const { locations, surveyType } = this.props;
+    const { isExportOpen, isExporting, selectedTables } = this.state;
 
-      {isExportOpen && (
-        <div
-          className="export-dialog-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => !isExporting && setIsExportOpen(false)}
-        >
-          <div className="export-dialog" onClick={(event) => event.stopPropagation()}>
-            <h4>Export Tables</h4>
-            <div className="export-dialog-tables">
-              {SURVEY_TYPES.map((table) => (
-                <button
-                  type="button"
-                  key={table}
-                  className={`export-dialog-table-btn${selectedTables.has(table) ? " export-dialog-table-btn-active" : ""}`}
-                  onClick={() => toggleTable(table)}
-                >
-                  {table}
-                </button>
-              ))}
-            </div>
-            <div className="export-dialog-actions">
-              <button
-                type="button"
-                className="export-dialog-cancel"
-                onClick={() => setIsExportOpen(false)}
-                disabled={isExporting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="export-dialog-confirm"
-                onClick={handleExport}
-                disabled={selectedTables.size === 0 || isExporting}
-              >
-                {isExporting ? "Exporting..." : "Export"}
-              </button>
-            </div>
+    return (
+      <>
+        <div className="observations-table-toolbar">
+          <h3>All Observations ({locations.length})</h3>
+          <button
+            type="button"
+            className="header-tab observations-table-export-btn"
+            onClick={() => this.setState({ isExportOpen: true })}
+          >
+            <span className="header-tab-icon">⬇️</span>
+            Export
+          </button>
+        </div>
+        <div className="observations-table panel">
+          <div
+            className={`ag-theme-alpine observations-table-grid${
+              surveyType === "Rope Bridge" ? " observations-table-grid-no-header-border" : ""
+            }`}
+          >
+            <AgGridReact
+              theme="legacy"
+              rowData={locations}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              autoSizeStrategy={{ type: "fitCellContents" }}
+              alwaysShowHorizontalScroll
+              alwaysShowVerticalScroll
+              pagination
+              paginationPageSize={locations.length}
+              paginationPageSizeSelector={this.getPageSizeOptions()}
+              onRowClicked={this.handleRowClicked}
+              rowSelection={{ mode: "singleRow", checkboxes: false }}
+              suppressCellFocus
+              animateRows
+            />
           </div>
         </div>
-      )}
-    </div>
-  );
+
+        {isExportOpen && (
+          <div
+            className="export-dialog-overlay"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => !isExporting && this.setState({ isExportOpen: false })}
+          >
+            <div className="export-dialog" onClick={(event) => event.stopPropagation()}>
+              <h4>Export Tables</h4>
+              <div className="export-dialog-tables">
+                {SURVEY_TYPES.map((table) => (
+                  <button
+                    type="button"
+                    key={table}
+                    className={`export-dialog-table-btn${selectedTables.has(table) ? " export-dialog-table-btn-active" : ""}`}
+                    onClick={() => this.toggleTable(table)}
+                  >
+                    {table}
+                  </button>
+                ))}
+              </div>
+              <div className="export-dialog-actions">
+                <button
+                  type="button"
+                  className="export-dialog-cancel"
+                  onClick={() => this.setState({ isExportOpen: false })}
+                  disabled={isExporting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="export-dialog-confirm"
+                  onClick={this.handleExport}
+                  disabled={selectedTables.size === 0 || isExporting}
+                >
+                  {isExporting ? "Exporting..." : "Export"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 }
 
 export default ObservationsTable;
-

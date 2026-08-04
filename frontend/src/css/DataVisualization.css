@@ -1,0 +1,110 @@
+/* Tabs panel sits on its own line above the charts (not inside a flex row with taller siblings), so it
+   never gets stretched to match a taller neighbour - height stays auto/content-sized. */
+#data-visualization-page .survey-type-tabs {
+  align-self: flex-start;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chart-card-wide {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Title + Monthly/Yearly toggle share one row above the "Observations Over Time" chart. */
+.chart-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chart-card-toolbar h3 {
+  margin: 0;
+}
+
+.chart-card-toolbar .filters-tab-row {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.chart-card-subtitle {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+/* Custom recharts <Tooltip content={...}> replacement - a small rounded card instead of the default. */
+.chart-tooltip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+  font-size: 13px;
+}
+
+.chart-tooltip-title {
+  font-weight: 600;
+  color: var(--text-h);
+  margin-bottom: 4px;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chart-tooltip-value {
+  font-weight: 600;
+}
+
+/* Breakdown table under each chart: a pinned "Total" row, then a scrollable list of category rows so a
+   chart with many categories (e.g. Weather Conditions) doesn't blow out the card's height. */
+.chart-table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.chart-table-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.chart-table-row:last-child {
+  border-bottom: none;
+}
+
+.chart-table-row:nth-child(even) {
+  background: var(--code-bg);
+}
+
+.chart-table-total {
+  font-weight: 700;
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.chart-table-scroll {
+  max-height: 180px;
+  overflow-y: auto;
+}

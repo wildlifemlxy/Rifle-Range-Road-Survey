@@ -110,12 +110,10 @@ export const fetchSurveyLocations = async (sheetId, surveyType = "Regular") => {
       lng >= 103.776 &&
       lng <= 103.8;
 
-    // Bound to the surveyed Rifle Range Nature Park <-> ST Engineering stretch, dropping stray/typo'd
-    // coordinates - but only for Regular, whose map view depends on real coordinates. The Rope Bridge
-    // sheet records a fixed bridge ID per sighting instead of per-sighting GPS, and External often notes
-    // a lamp post number instead of coordinates, so almost none of either's rows have real coordinates;
-    // keep those rows (for the observations table) and let the map page filter out the uncoordinated ones.
-    if (!hasCoords && surveyType === "Regular") continue;
+    // Bound to the surveyed Rifle Range Nature Park <-> ST Engineering stretch, treating stray/typo'd
+    // coordinates as missing (lat/lng 0 below) rather than dropping the row entirely - the row itself is
+    // still a real observation and needs to count toward totals/table/charts/filters, it just can't be
+    // placed on the map. The frontend's map view filters out the uncoordinated rows itself.
 
     const [combinedStartTime, combinedEndTime] = pick(record, ["Survey Start Time and End Time"])
       .split(/\s+to\s+/)
@@ -140,7 +138,7 @@ export const fetchSurveyLocations = async (sheetId, surveyType = "Regular") => {
       surveyEndTime: pick(record, ["Survey End Time"]) || combinedEndTime || "",
       timeOfObservation: pick(record, ["Time of Observation"]),
       taxa: pick(record, ["Taxa"]),
-      isRoadkill: pick(record, ["Is it roadkill?"]),
+      isRoadkill: pick(record, ["Is it roadkill?", "Roadkill?"]),
       remarks: pick(record, ["Behaviours observed and/or other remarks", "Remarks"]),
       surveyId:
         pick(record, ["Survey ID"]) ||
@@ -233,42 +231,115 @@ export const fetchSpeciesList = async (sheetId) => {
 
 const norm = (value) => (value || "").trim().toLowerCase();
 
-// Reads the sheet's own pre-computed summary block for whichever survey type is active, instead of
-// recalculating totals ourselves. Each tab (Regular/Rope Bridge/External) lays this block out a little
-// differently - Rope Bridge has an extra disclaimer line above it, shifting the header/value rows down
-// by one, and the fields themselves are in different column positions/order/grouping on every tab - so
-// rather than hardcoding field names, every non-blank header/value pair is read out generically (a blank
-// header cell under a still-open group, e.g. "Side of the Road" > "North", is labelled "Group - Subheader").
+const percent = (part, total) => (total > 0 ? `${((part / total) * 100).toFixed(2)}%` : "0.00%");
+
+// Computes the overview stat cards directly from every raw survey record instead of trusting the
+// sheet's own pre-baked summary formulas, which were found to go stale/wrong once the data outgrew
+// whatever cell range the formula was originally written for (e.g. a negative volunteer count, and
+// "Target Species Recorded" stuck at 1 no matter how much data was added). Reads every row of the tab
+// (not just the ones with valid map coordinates) so counts reflect the full table.
 export const fetchSurveySummary = async (sheetId, surveyType = "Regular") => {
   const gid = SURVEY_LOCATIONS_GIDS[surveyType] ?? SURVEY_LOCATIONS_GIDS.Regular;
   const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
   const response = await axios.get(csvUrl);
   const lines = response.data.split(/\r?\n/);
 
-  const headerRowIndex = lines.findIndex((line) => norm(line.split(",")[0]).includes("total number of surveys"));
-  if (headerRowIndex === -1) {
-    throw new Error("Could not find survey summary header row in survey sheet");
+  const headerIndex = lines.findIndex(
+    (line) => (line.includes("Lat") && line.includes("Lon")) || line.includes("Genus")
+  );
+  if (headerIndex === -1) {
+    throw new Error("Could not find header row in survey sheet");
   }
 
-  const [headerRow] = parse(lines[headerRowIndex], { columns: false, skip_empty_lines: false });
-  const [subheaderRow] = parse(lines[headerRowIndex + 1], { columns: false, skip_empty_lines: false });
-  const [valueRow] = parse(lines[headerRowIndex + 2], { columns: false, skip_empty_lines: false });
-  if (!valueRow) {
-    throw new Error("Could not find survey summary row in survey sheet");
+  const records = parse(lines.slice(headerIndex).join("\n"), {
+    columns: true,
+    skip_empty_lines: true,
+    relax_column_count: true,
+  });
+
+  const surveyIds = new Set();
+  const species = new Set();
+  const targetSpecies = new Set();
+  const volunteers = new Set();
+  let totalIndividuals = 0;
+  let targetIndividuals = 0;
+  const cardinal = { north: 0, south: 0 };
+  const relative = { left: 0, right: 0, onRoad: 0 };
+
+  for (const record of records) {
+    const scientificName = norm(pick(record, ["Scientific Name (Genus/Species)", "Genus/Species Name"]));
+    const count = Number(record.Count) || 0;
+    const isTarget = norm(pick(record, ["Target Species", "Target Species?"])) === "yes";
+    const surveyId =
+      pick(record, ["Survey ID"]) ||
+      `${pick(record, ["Survey Date"])}-${record["S/No."] || ""}-${pick(record, ["Time of Observation"])}`;
+
+    if (surveyId) surveyIds.add(surveyId);
+    if (scientificName) species.add(scientificName);
+    totalIndividuals += count;
+    if (isTarget) {
+      targetIndividuals += count;
+      if (scientificName) targetSpecies.add(scientificName);
+    }
+
+    pick(record, ["Name of Surveyors"])
+      .split(/[,&]/)
+      .map((name) => norm(name))
+      .filter(Boolean)
+      .forEach((name) => volunteers.add(name));
+
+    const cardinalAnswer = norm(
+      pick(record, [
+        "Which side of the road is it on? (N/S/On road)",
+        "Which side of the road did it come from? (N/S)",
+        "Which side of the road was it on?",
+      ])
+    );
+    if (cardinalAnswer.startsWith("n")) cardinal.north++;
+    else if (cardinalAnswer.startsWith("s")) cardinal.south++;
+
+    const relativeAnswer = norm(
+      pick(record, [
+        "Which side of the road was it on? (L/R/On road)",
+        "Which side of the road did it come from? (L/R)",
+        "Which side of the road was it on?",
+      ])
+    );
+    if (relativeAnswer.startsWith("l")) relative.left++;
+    else if (relativeAnswer.startsWith("r")) relative.right++;
+    else if (relativeAnswer.includes("on")) relative.onRoad++;
   }
 
-  const items = [];
-  let currentGroup = "";
-  for (let i = 0; i < headerRow.length; i++) {
-    const headerText = (headerRow[i] || "").trim();
-    const subheaderText = (subheaderRow?.[i] || "").trim();
-    const value = (valueRow[i] || "").trim();
-    if (headerText) currentGroup = headerText;
+  const items = [
+    { label: "Total Number of Surveys", value: String(surveyIds.size) },
+    { label: "Unique Species", value: String(species.size) },
+    { label: "Target Species Recorded", value: String(targetSpecies.size) },
+    { label: "Target Individuals Recorded", value: String(targetIndividuals) },
+    { label: "Total Individuals Recorded", value: String(totalIndividuals) },
+    { label: "Total Number of Volunteers", value: String(volunteers.size) },
+  ];
 
-    if (!value) continue; // blank spacer column - nothing to show
+  // Only show a side-of-the-road group when its underlying question actually has real answers on this
+  // tab - e.g. External never asks a cardinal N/S question, so that group is skipped there entirely
+  // instead of showing a row of meaningless 0.00% values.
+  const cardinalTotal = cardinal.north + cardinal.south;
+  if (cardinalTotal > 0) {
+    items.push(
+      { label: "Side of the Road (cardinal directions) - North", value: percent(cardinal.north, cardinalTotal) },
+      { label: "Side of the Road (cardinal directions) - South", value: percent(cardinal.south, cardinalTotal) }
+    );
+  }
 
-    const label = subheaderText ? `${currentGroup} - ${subheaderText}` : headerText || currentGroup;
-    items.push({ label, value });
+  const relativeTotal = relative.left + relative.right + relative.onRoad;
+  if (relativeTotal > 0) {
+    items.push(
+      { label: "Side of the Road (relative to surveyor) - Left", value: percent(relative.left, relativeTotal) },
+      { label: "Side of the Road (relative to surveyor) - Right", value: percent(relative.right, relativeTotal) },
+      {
+        label: "Side of the Road (relative to surveyor) - On the Road",
+        value: percent(relative.onRoad, relativeTotal),
+      }
+    );
   }
 
   return { items };

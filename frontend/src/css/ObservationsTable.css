@@ -1,11 +1,18 @@
+/* Fills whatever vertical space is left in the tab's scroll area (instead of sizing to its own
+   content), so the grid below gets to flex-grow into the remainder and do its own internal row
+   scrolling - keeping its header row visible - rather than the whole page scrolling past it. */
 .observations-table {
-  flex: none;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  margin-top: 16px;
+  margin-top: 0;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
-.observations-table-header {
+.observations-table-toolbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -13,26 +20,26 @@
   margin-bottom: 12px;
 }
 
-.observations-table-header h3 {
+.observations-table-toolbar h3 {
   margin: 0;
 }
 
 .observations-table-export-btn {
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 13px;
-  cursor: pointer;
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
 }
 
 .observations-table-export-btn:hover {
-  background: var(--border);
+  color: #fff;
+  background: var(--accent-gradient);
 }
 
 .observations-table-grid {
-  height: 560px;
+  flex: 1;
+  min-height: 350px;
   width: 100%;
   border-radius: 6px;
   overflow: hidden;
@@ -131,6 +138,14 @@
   display: none;
 }
 
+/* The pinned S/N column gets its own divider border by default (ag-grid draws it on the last
+   pinned-left cell/header, with higher selector specificity than a plain override) - drop it so
+   S/N blends in with the rest of the columns. */
+.observations-table .ag-cell-last-left-pinned,
+.observations-table .ag-header-cell-last-left-pinned {
+  border-right: none !important;
+}
+
 /* Maps ag-grid's theme variables onto this app's existing light/dark palette (index.css) instead of
    the default Alpine light theme, so the grid matches the rest of the UI in both color schemes. */
 .observations-table .ag-theme-alpine {
@@ -143,4 +158,33 @@
   --ag-odd-row-background-color: var(--bg);
   --ag-font-family: inherit;
   --ag-font-size: 13px;
+}
+
+/* With many wide, auto-sized columns the grid scrolls horizontally - keep that scrollbar always
+   visible (not just on hover) as a permanent hint that there's more to see. ag-grid mimics the OS's
+   own overlay-scrollbar behavior (fades out via .ag-scrollbar-invisible/opacity) on trackpad-based
+   systems, so that has to be overridden directly in addition to alwaysShowHorizontalScroll/
+   alwaysShowVerticalScroll on the grid itself. */
+.observations-table .ag-body-horizontal-scroll.ag-scrollbar-invisible,
+.observations-table .ag-body-vertical-scroll.ag-scrollbar-invisible {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.observations-table .ag-body-horizontal-scroll-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.observations-table .ag-body-horizontal-scroll-viewport::-webkit-scrollbar {
+  height: 10px;
+}
+
+.observations-table .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.observations-table .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 6px;
 }

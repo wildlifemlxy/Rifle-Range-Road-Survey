@@ -1,77 +1,158 @@
+/* Top informational bar (brand + live status) and a distinct "bottom header" tab bar row below it -
+   kept as one sticky header so nav is always reachable while scrolling a tall tab's content. */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
+  flex-direction: column;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 10px 24px -4px rgb(0 0 0 / 0.28);
 }
 
-.app-header h1 {
-  margin: 0;
-  font-size: 22px;
+/* Thin accent bar across the very top of the page, above the brand block. */
+.app-header::before {
+  content: '';
+  display: block;
+  height: 4px;
+  width: 100%;
+  background: var(--accent-gradient);
+}
+
+.app-header-top {
+  display: flex;
+  align-items: center;
+  /* Left-aligned so the brand block lines up with the left edge of the page - offset by the
+     left menu's 20% width so it starts right where that menu ends. Right padding is tuned so the
+     Home button's left edge lines up with the Filters panel's Reset button below it. */
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 32px;
+  padding: 28px 5px 24px 20vw;
+}
+
+.app-header-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  text-align: left;
+}
+
+.app-header-title {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.3;
   letter-spacing: normal;
+  white-space: nowrap;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.app-header-datetime {
+  font-size: 18px;
+  margin-top: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.app-header-tagline {
+  font-size: 16px;
+  margin-top: 4px;
   color: var(--text-h);
 }
 
-.header-tabs {
+.home-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-gradient);
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s var(--bounce), box-shadow 0.2s ease;
+}
+
+.home-button-icon {
+  font-size: 15px;
+}
+
+.home-button:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow);
+}
+
+.home-button:active {
+  transform: scale(0.96);
+}
+
+.app-header-tabs {
   display: flex;
-  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .header-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
   font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.15px;
   text-decoration: none;
   color: var(--text);
-  padding: 6px 14px;
-  border-radius: 999px;
+  background: none;
+  padding: 8px 18px;
+  border-radius: 10px;
   border: 1px solid transparent;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.2s var(--bounce);
+}
+
+.header-tab-icon {
+  font-size: 15px;
+  display: inline-block;
+  transition: transform 0.2s var(--bounce);
 }
 
 .header-tab:hover {
   color: var(--text-h);
-}
-
-.header-tab-active {
-  color: var(--text-h);
-  background: var(--accent-bg);
+  background: var(--code-bg);
   border-color: var(--accent-border);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
-.live-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--text);
+.header-tab:hover .header-tab-icon {
+  transform: scale(1.2) rotate(-6deg);
 }
 
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: live-pulse 2s infinite;
+.header-tab:active {
+  transform: scale(0.95);
 }
 
-.live-indicator-offline {
-  color: var(--text);
-  opacity: 0.7;
+.header-tab-active,
+.header-tab-active:hover {
+  color: #fff;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
 }
 
-.live-dot-offline {
-  background: #9aa0a6;
-  animation: none;
-}
 
-@keyframes live-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
-  }
-}

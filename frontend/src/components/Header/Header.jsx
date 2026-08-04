@@ -1,36 +1,55 @@
-import { NavLink } from "react-router-dom";
-import { useSocketStatus } from "../../hooks/useSocketStatus";
+import { Component } from "react";
 import "../../css/Header.css";
 
-function Header() {
-  const isLive = useSocketStatus();
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  weekday: "long",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
 
-  return (
-    <header className="app-header">
-      <h1>🗺️ Rifle Range Road Survey</h1>
-      <nav className="header-tabs">
-        <NavLink to="/" end className={({ isActive }) => `header-tab${isActive ? " header-tab-active" : ""}`}>
-          Map
-        </NavLink>
-        <NavLink
-          to="/road-bridge"
-          className={({ isActive }) => `header-tab${isActive ? " header-tab-active" : ""}`}
-        >
-          Road Bridge
-        </NavLink>
-        <NavLink
-          to="/observations"
-          className={({ isActive }) => `header-tab${isActive ? " header-tab-active" : ""}`}
-        >
-          Observations
-        </NavLink>
-      </nav>
-      <span className={`live-indicator${isLive ? "" : " live-indicator-offline"}`}>
-        <span className={`live-dot${isLive ? "" : " live-dot-offline"}`} />
-        {isLive ? "Real-time Updates" : "Connecting..."}
-      </span>
-    </header>
-  );
+class Header extends Component {
+  // `now` drives a live-updating clock in the top bar.
+  state = {
+    now: new Date(),
+  };
+
+  componentDidMount() {
+    this.clockInterval = setInterval(() => this.setState({ now: new Date() }), 1000);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.clockInterval);
+  }
+
+  render() {
+    const { onChangeTab } = this.props;
+    const { now } = this.state;
+
+    return (
+      <header className="app-header">
+        <div className="app-header-top">
+          <div className="app-header-brand">
+            <span className="app-header-title">Rifle Range Road Survey</span>
+            <span className="app-header-datetime">{DATE_TIME_FORMATTER.format(now)}</span>
+            <span className="app-header-tagline">Comprehensive Wildlife Crossing Survey Analytics</span>
+          </div>
+          {/*
+          <button type="button" className="home-button" onClick={() => onChangeTab("overview")}>
+            <span className="home-button-icon">🏠</span>
+            Home
+          </button>
+          */}
+        </div>
+      </header>
+    );
+  }
 }
 
 export default Header;
+
+

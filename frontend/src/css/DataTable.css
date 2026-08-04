@@ -1,0 +1,9 @@
+/* This page's row layout needs a taller-than-default height budget for the table. */
+#data-table-page {
+  --observations-panel-height: 640px;
+}
+
+/* Table and details panel are given the same explicit height so they line up side by side. */
+#data-table-page .observations-table-grid {
+  height: var(--observations-panel-height);
+}

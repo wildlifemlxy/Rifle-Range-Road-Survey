@@ -1,0 +1,39 @@
+.overview-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+
+.overview-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Overrides the shared .panel:hover lift/shadow - these cards stay static on hover. */
+.overview-stat-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border);
+  transform: none;
+}
+
+.overview-stat-icon {
+  font-size: 20px;
+}
+
+.overview-stat-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.overview-stat-value {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-h);
+}

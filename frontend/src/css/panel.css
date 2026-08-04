@@ -1,12 +1,20 @@
 .panel {
-  background: var(--code-bg);
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
   text-align: left;
   flex: 1;
   min-width: 200px;
   box-sizing: border-box;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s var(--bounce);
+}
+
+.panel:hover {
+  box-shadow: var(--shadow);
+  border-color: var(--accent-border);
+  transform: translateY(-3px);
 }
 
 .panel h3 {

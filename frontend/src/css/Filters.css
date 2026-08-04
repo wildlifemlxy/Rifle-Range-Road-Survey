@@ -1,5 +1,17 @@
 .filters-card {
   flex-basis: 100%;
+  background: none;
+  border: none;
+  box-shadow: none;
+  /* Break out of .dashboard-fixed-top's horizontal padding so the card spans the full page width. */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+.filters-card:hover {
+  box-shadow: none;
+  border-color: transparent;
+  transform: none;
 }
 
 .filters-header {
@@ -12,14 +24,54 @@
   margin: 0;
 }
 
+.filters-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filters-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.filters-collapse-toggle {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--accent-2);
+  background: none;
+  color: var(--accent-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.2s var(--bounce);
+}
+
+.filters-collapse-toggle:hover {
+  background: var(--code-bg);
+  color: var(--text-h);
+  border-color: var(--accent-border);
+}
+
+.filters-collapse-toggle:active {
+  transform: scale(0.9);
+}
+
 .filters-reset {
   font: inherit;
   font-size: 12px;
   padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
+  border-radius: 8px;
+  border: 1px solid var(--accent-2);
   background: none;
-  color: var(--text);
+  color: var(--accent-2);
   cursor: pointer;
   transition: opacity 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
@@ -55,7 +107,7 @@
 .filters-tab-row {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--accent-2);
   margin-bottom: 10px;
 }
 
@@ -65,7 +117,7 @@
   padding: 6px 12px;
   border: none;
   background: none;
-  color: var(--text);
+  color: var(--accent-2);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -85,7 +137,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--accent-2);
   margin-bottom: 10px;
 }
 
@@ -95,7 +147,7 @@
   padding: 5px 10px;
   border: none;
   background: none;
-  color: var(--text);
+  color: var(--accent-2);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -139,22 +191,28 @@
   font: inherit;
   font-size: 12px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--accent-border);
   background: var(--accent-bg);
   color: var(--text-h);
   cursor: pointer;
-  transition: opacity 0.15s ease, background-color 0.15s ease;
+  transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s var(--bounce);
 }
 
 .filter-chip:hover {
   background-color: var(--accent-border);
+  transform: translateY(-1px) scale(1.04);
+}
+
+.filter-chip:active {
+  transform: scale(0.95);
 }
 
 .filter-chip-inactive {
-  opacity: 0.4;
+  opacity: 0.9;
   background: none;
-  border-color: var(--border);
+  border-color: var(--accent-2);
+  color: var(--accent-2);
 }
 
 .filter-chip-selected {

@@ -4,14 +4,20 @@
   --bg: #ffffff;
   --border: #e2e8f0;
   --code-bg: #f8fafc;
-  --accent: #22c55e;
-  --accent-bg: rgba(34, 197, 94, 0.1);
-  --accent-border: rgba(34, 197, 94, 0.5);
+  /* Own theme: a wildlife/forest/nature palette (deep forest green + warm bark amber), deliberately
+     distinct from the shb_survey sibling's flat bright green. */
+  --accent: #2f6f4e;
+  --accent-2: #b45309;
+  --accent-bg: rgba(47, 111, 78, 0.1);
+  --accent-border: rgba(47, 111, 78, 0.5);
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   --social-bg: rgba(241, 245, 249, 0.5);
   --shadow:
     rgb(0 0 0 / 0.1) 0 4px 6px -1px, rgb(0 0 0 / 0.1) 0 2px 4px -2px;
-  --body-bg-start: #f0fdf4;
-  --body-bg-end: #ecfdf5;
+  --shadow-sm: rgb(0 0 0 / 0.06) 0 1px 3px 0, rgb(0 0 0 / 0.04) 0 1px 2px -1px;
+  --body-bg-start: #ecfdf5;
+  --body-bg-end: #fefce8;
+  --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -32,13 +38,13 @@
   }
 }
 
+/* The whole app is the /dashboard management-system page now, so #root is always full-bleed - no more
+   centered "landing page" width constraint (previously overridden per-page with `#root:has(#xxx-page)`
+   rules scattered across every subpage's own CSS file). */
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

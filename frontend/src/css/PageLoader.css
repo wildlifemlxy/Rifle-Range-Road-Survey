@@ -1,0 +1,21 @@
+/* Full-viewport gate shown until the shared survey data (locations + species list) has loaded at least
+   once, before the Header/tabs are revealed for the very first time. */
+.page-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--text);
+  font-size: 15px;
+}
+
+/* Smaller inline placeholder shown inside a tab whenever its data is (re)loading - e.g. right after
+   switching tabs forces the shared survey type to change - instead of a flash of stale/empty content. */
+.subpage-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text);
+  font-size: 15px;
+}

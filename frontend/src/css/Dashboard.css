@@ -1,0 +1,246 @@
+/* Shared body layout for every tab: a top "filters" zone and a bottom "content" zone. */
+.dashboard-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* One universal page shell every tab's <section> uses (replaces the near-identical `#xxx-page` box
+   rules that used to be duplicated in each subpage's own CSS file). */
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* Filters card, then the main tab nav below/outside it: fixed in place, never scrolls away. Sits
+   flush against the header (no top padding/gap) and spans the full page width. Light, distinctly
+   greenish tint, distinct from both the header's plain `--bg` and the page's gradient body. Bottom
+   padding pulls the tab nav row up off the page content below it, leaving a gap. */
+.dashboard-fixed-top {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 24px 16px;
+  box-sizing: border-box;
+  border-bottom: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--body-bg-start) 92%);
+}
+
+/* Wraps the scroll area + its custom scrollbar thumb (see .dashboard-scrollbar-track/-thumb below)
+   so the thumb can be absolutely positioned against this box regardless of the scroll area's own
+   (hidden) native scrollbar. */
+.dashboard-scroll-wrapper {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.dashboard-scroll-area {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-y: scroll;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Right padding reserves clear space for the custom scrollbar track/thumb (see below) so page
+     content never sits underneath it. */
+  padding: 16px 24px 24px 0;
+  /* The real scrollbar is hidden (a custom always-visible thumb is rendered on top instead - see
+     .dashboard-scrollbar-track/-thumb) since native scrollbars only paint while content overflows,
+     and even then most browsers/OSes auto-hide them outside an active scroll gesture. */
+  scrollbar-width: none;
+}
+
+.dashboard-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
+/* Always-visible track + thumb standing in for the native scrollbar (hidden above), so there's a
+   permanent dark-green scroll affordance no matter the OS/browser or whether the content actually
+   needs scrolling right now. Sits inside the scroll area's own right padding, and a high z-index
+   keeps it above tab content (e.g. AG-Grid, which creates its own stacking contexts) so it never
+   ends up hidden underneath. Clickable/draggable (see Dashboard.jsx's handleTrackMouseDown/
+   handleThumbMouseDown), so pointer-events must stay enabled (not `none`) on both. */
+.dashboard-scrollbar-track {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  bottom: 0;
+  width: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  cursor: pointer;
+  z-index: 20;
+}
+
+.dashboard-scrollbar-thumb {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  min-height: 24px;
+  border-radius: 4px;
+  background: var(--accent);
+  cursor: grab;
+  z-index: 20;
+}
+
+.dashboard-scrollbar-thumb:active {
+  cursor: grabbing;
+}
+
+/* Row wrapper splitting each tab's section into a 20% survey-type menu and 80% content area. No
+   right-side padding so the scroll area (and its scrollbar) spans flush to the right edge. */
+.dashboard-page-columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.dashboard-page-menu {
+  flex: 0 0 20%;
+  max-width: 20%;
+  box-sizing: border-box;
+  padding: 16px;
+  background: color-mix(in srgb, var(--accent) 2%, #ffffff 98%);
+  transition: flex-basis 0.25s ease, max-width 0.25s ease, padding 0.25s ease;
+}
+
+/* Shrinks the whole sidebar column down to a slim toggle-only strip when SurveyTypeTabs is collapsed,
+   instead of leaving a mostly-empty 20%-wide column behind - the freed width goes straight back to the
+   scroll area next to it since both are flex children of `.dashboard-page-columns`. */
+.dashboard-page-menu:has(.survey-type-tabs-collapsed) {
+  flex: 0 0 48px;
+  max-width: 48px;
+  padding: 16px 8px;
+}
+
+/* Title + one-line description shown above every tab's filters, sourced from Dashboard.jsx so the same
+   title/hint treatment is guaranteed identical across all four tabs. */
+.dashboard-page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: normal;
+  color: var(--text-h);
+}
+
+/* Same gradient text treatment as the header's "Rifle Range Road Survey" brand title. */
+.dashboard-page-title-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dashboard-page-icon {
+  font-size: 28px;
+}
+
+.dashboard-page-header p {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.dashboard-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Shared by the Overview/Data Table/Observations tabs (previously duplicated across
+   Dashboard.css/RoadBridge.css). */
+.overview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.map-row {
+  display: flex;
+  gap: 16px;
+  min-height: 640px;
+}
+
+.map-container {
+  flex: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.map-error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+/* Confirmation dialog shown when switching dashboard tabs (Overview/Data Visualizations/Observations/
+   Data Table) while filters are active - asks whether to reset them or carry them into the new tab. */
+.tab-switch-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.tab-switch-dialog {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.tab-switch-dialog p {
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.tab-switch-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tab-switch-actions button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tab-switch-actions button:hover {
+  background: var(--border);
+}
+

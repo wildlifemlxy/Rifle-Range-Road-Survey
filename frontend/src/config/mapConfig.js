@@ -70,6 +70,84 @@ export const fetchSurveySummary = async (surveyType = "Regular") => {
   return data.summary;
 };
 
+const percent = (part, total) => (total > 0 ? `${((part / total) * 100).toFixed(2)}%` : "0.00%");
+
+// Computes the Overview/Data Overview stat cards straight from whatever location set is passed in, so
+// they always reflect the same active filters/search as the rest of the app (map, charts, table) instead
+// of a separate unfiltered total fetched from the backend.
+export const buildSurveySummaryItems = (locations) => {
+  const species = new Set();
+  const targetSpecies = new Set();
+  const volunteers = new Set();
+  let totalIndividuals = 0;
+  let targetIndividuals = 0;
+  const cardinal = { north: 0, south: 0 };
+  const relative = { left: 0, right: 0, onRoad: 0 };
+
+  for (const location of locations) {
+    const scientificName = location.scientificName?.trim().toLowerCase();
+    const count = Number(location.count) || 0;
+    const isTarget = location.targetSpecies?.trim().toLowerCase() === "yes";
+
+    if (scientificName) species.add(scientificName);
+    totalIndividuals += count;
+    if (isTarget) {
+      targetIndividuals += count;
+      if (scientificName) targetSpecies.add(scientificName);
+    }
+
+    (location.surveyors || "")
+      .split(/[,&]/)
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean)
+      .forEach((name) => volunteers.add(name));
+
+    const cardinalAnswer = location.side?.trim().toLowerCase();
+    if (cardinalAnswer === "north") cardinal.north++;
+    else if (cardinalAnswer === "south") cardinal.south++;
+
+    const relativeAnswer = location.sideLR?.trim().toLowerCase() || "";
+    if (relativeAnswer.startsWith("l")) relative.left++;
+    else if (relativeAnswer.startsWith("r")) relative.right++;
+    else if (relativeAnswer.includes("on")) relative.onRoad++;
+  }
+
+  const items = [
+    // Every row is its own recorded sighting/survey entry, not deduplicated by Survey ID session.
+    { label: "Total Number of Surveys", value: String(locations.length) },
+    { label: "Unique Species", value: String(species.size) },
+    { label: "Target Species Recorded", value: String(targetSpecies.size) },
+    { label: "Target Individuals Recorded", value: String(targetIndividuals) },
+    { label: "Total Individuals Recorded", value: String(totalIndividuals) },
+    { label: "Total Number of Volunteers", value: String(volunteers.size) },
+  ];
+
+
+  // Only show a side-of-the-road group when its underlying question actually has real answers in the
+  // current (filtered) location set - e.g. External never asks a cardinal N/S question.
+  const cardinalTotal = cardinal.north + cardinal.south;
+  if (cardinalTotal > 0) {
+    items.push(
+      { label: "Side of the Road (cardinal directions) - North", value: percent(cardinal.north, cardinalTotal) },
+      { label: "Side of the Road (cardinal directions) - South", value: percent(cardinal.south, cardinalTotal) }
+    );
+  }
+
+  const relativeTotal = relative.left + relative.right + relative.onRoad;
+  if (relativeTotal > 0) {
+    items.push(
+      { label: "Side of the Road (relative to surveyor) - Left", value: percent(relative.left, relativeTotal) },
+      { label: "Side of the Road (relative to surveyor) - Right", value: percent(relative.right, relativeTotal) },
+      {
+        label: "Side of the Road (relative to surveyor) - On the Road",
+        value: percent(relative.onRoad, relativeTotal),
+      }
+    );
+  }
+
+  return { items };
+};
+
 // The sheet's "Species List" tab, used as the conservation-status reference for each observation.
 export const fetchSpeciesList = async () => {
   const { data } = await axios.post("/api/species-list");
@@ -81,10 +159,18 @@ export const fetchSpeciesList = async () => {
   return data.species;
 };
 
-// Looks up species status by scientific name (case-insensitive, trimmed) for quick per-observation access.
-// Also indexed by common name (scientific name wins on collision) so Table B's higher-taxonomic-level
-// rows - recorded as a placeholder common name like "Unknown Bat" rather than a real scientific name,
-// e.g. "Chiroptera" - are still reachable from a sighting that only has that common name.
+// Sightings sometimes prefix a Table B scientific name with its taxonomic rank (e.g. "Family Muridae"
+// instead of just "Muridae") - strip that so it still matches Table B's own scientificName column.
+const normalizeScientificName = (value) =>
+  value
+    ?.trim()
+    .toLowerCase()
+    .replace(/^(kingdom|phylum|class|order|family|genus|species|subfamily|suborder)\s+/, "");
+
+// Looks up species status by scientific name (case-insensitive, trimmed, rank-prefix stripped) for quick
+// per-observation access. Also indexed by common name (scientific name wins on collision) so Table B's
+// higher-taxonomic-level rows - recorded as a placeholder common name like "Unknown Bat" rather than a
+// real scientific name, e.g. "Chiroptera" - are still reachable from a sighting that only has that common name.
 export const buildSpeciesStatusLookup = (species) => {
   const lookup = new Map();
   for (const entry of species) {
@@ -92,16 +178,16 @@ export const buildSpeciesStatusLookup = (species) => {
     if (commonKey) lookup.set(commonKey, entry);
   }
   for (const entry of species) {
-    const sciKey = entry.scientificName?.trim().toLowerCase();
+    const sciKey = normalizeScientificName(entry.scientificName);
     if (sciKey) lookup.set(sciKey, entry);
   }
   return lookup;
 };
 
-// Looks up a location's species entry, trying its scientific name first (Table A) then falling back
+// Looks up a location's species entry, trying its scientific name first (Table A/B) then falling back
 // to its common name (Table B's "Unknown X" placeholders, which sightings only ever record by that name).
 export const lookupSpeciesStatus = (speciesStatusLookup, location) => {
-  const sciKey = location.scientificName?.trim().toLowerCase();
+  const sciKey = normalizeScientificName(location.scientificName);
   if (sciKey && speciesStatusLookup.has(sciKey)) return speciesStatusLookup.get(sciKey);
   const commonKey = location.commonName?.trim().toLowerCase();
   if (commonKey && speciesStatusLookup.has(commonKey)) return speciesStatusLookup.get(commonKey);
@@ -172,15 +258,39 @@ export const TABLE_COLUMNS = [
 ];
 
 
+// Survey dates aren't in one consistent format across sheets - Regular/Rope Bridge use `YYYY-MM-DD`,
+// External uses `DD/MM/YYYY` - so both need to be recognized wherever a location's surveyDate is parsed
+// (charting, table sorting), rather than assuming one shape.
+export const parseSurveyDate = (dateStr) => {
+  const trimmed = dateStr?.trim();
+  if (!trimmed) return null;
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) return { year: isoMatch[1], month: isoMatch[2], day: isoMatch[3] };
+
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) return { year: slashMatch[3], month: slashMatch[2], day: slashMatch[1] };
+
+  return null;
+};
+
+// A sortable numeric key (YYYYMMDD) for a surveyDate string, regardless of which of the above formats it's
+// in - unparseable/blank dates sort first (0) rather than throwing off the rest of the ordering.
+export const surveyDateSortValue = (dateStr) => {
+  const parsed = parseSurveyDate(dateStr);
+  if (!parsed) return 0;
+  return Number(`${parsed.year}${parsed.month.padStart(2, "0")}${parsed.day.padStart(2, "0")}`);
+};
+
 export const MAP_TYPE_LABEL = "Hybrid";
 
-export const SINGAPORE_CENTER = { lat: 1.3387, lng: 103.7845 };
-export const DEFAULT_ZOOM = 17;
+export const SINGAPORE_CENTER = { lat: 1.338700, lng: 103.784500 };
+export const DEFAULT_ZOOM = 15;
 
 // Rifle Range Nature Park <-> ST Engineering Rifle Range Park stretch, with a small buffer.
 export const SURVEY_SEGMENT_BOUNDS = {
-  south: 1.34,
-  north: 1.359,
-  west: 103.776,
-  east: 103.8,
+  south: 1.340000,
+  north: 1.359000,
+  west: 103.776000,
+  east: 103.800000,
 };

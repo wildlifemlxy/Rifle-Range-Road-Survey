@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, createRef } from "react";
 import { MarkerClusterer, SuperClusterAlgorithm } from "@googlemaps/markerclusterer";
 import { fetchMapApiKey, SURVEY_SEGMENT_BOUNDS, DEFAULT_ZOOM, SIDE_COLORS } from "../../config/mapConfig";
 
@@ -41,114 +41,131 @@ const loadGoogleMapsScript = (apiKey) => {
   });
 };
 
-function RifleRangeRoadMap({ locations, onZoomChange, onSelectLocation }) {
-  const mapContainerRef = useRef(null);
-  const [error, setError] = useState(null);
-  const mapRef = useRef(null);
-  const clustererRef = useRef(null);
-  const [mapReady, setMapReady] = useState(false);
+class RifleRangeRoadMap extends Component {
+  mapContainerRef = createRef();
+  mapRef = { current: null };
+  clustererRef = { current: null };
 
-  // Kept in a ref so the marker-sync effect below doesn't need to depend on (and re-run for) this callback.
-  const onSelectLocationRef = useRef(onSelectLocation);
-  onSelectLocationRef.current = onSelectLocation;
+  state = {
+    error: null,
+    mapReady: false,
+  };
 
-  // Initializes the Google Map exactly once; markers are synced separately whenever `locations` changes.
-  useEffect(() => {
-    let cancelled = false;
+  componentDidMount() {
+    this._unmounted = false;
+    this.initializeMap();
+  }
 
-    (async () => {
-      try {
-        const apiKey = await fetchMapApiKey();
-        if (!apiKey) throw new Error("Google Maps API key not configured");
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps.locations !== this.props.locations || prevState.mapReady !== this.state.mapReady) {
+      this.syncMarkers();
+    }
+  }
 
-        await loadGoogleMapsScript(apiKey);
-        // mapRef guard also protects against React StrictMode's double-invoked dev effects.
-        if (cancelled || !mapContainerRef.current || mapRef.current) return;
+  componentWillUnmount() {
+    this._unmounted = true;
+  }
 
-        const segmentBounds = new window.google.maps.LatLngBounds(
-          { lat: SURVEY_SEGMENT_BOUNDS.south, lng: SURVEY_SEGMENT_BOUNDS.west },
-          { lat: SURVEY_SEGMENT_BOUNDS.north, lng: SURVEY_SEGMENT_BOUNDS.east }
-        );
+  // Initializes the Google Map exactly once; markers are synced separately (via syncMarkers) whenever
+  // `locations` changes.
+  async initializeMap() {
+    try {
+      const apiKey = await fetchMapApiKey();
+      if (!apiKey) throw new Error("Google Maps API key not configured");
 
-        const map = new window.google.maps.Map(mapContainerRef.current, {
-          center: segmentBounds.getCenter(),
-          zoom: DEFAULT_ZOOM,
-          mapTypeId: window.google.maps.MapTypeId.HYBRID,
-          disableDefaultUI: true,
-          fullscreenControl: true,
-          fullscreenControlOptions: {
-            position: window.google.maps.ControlPosition.TOP_RIGHT,
+      await loadGoogleMapsScript(apiKey);
+      if (this._unmounted || !this.mapContainerRef.current || this.mapRef.current) return;
+
+      const segmentBounds = new window.google.maps.LatLngBounds(
+        { lat: SURVEY_SEGMENT_BOUNDS.south, lng: SURVEY_SEGMENT_BOUNDS.west },
+        { lat: SURVEY_SEGMENT_BOUNDS.north, lng: SURVEY_SEGMENT_BOUNDS.east }
+      );
+
+      const map = new window.google.maps.Map(this.mapContainerRef.current, {
+        center: segmentBounds.getCenter(),
+        zoom: DEFAULT_ZOOM,
+        mapTypeId: window.google.maps.MapTypeId.HYBRID,
+        disableDefaultUI: true,
+        fullscreenControl: true,
+        fullscreenControlOptions: {
+          position: window.google.maps.ControlPosition.TOP_RIGHT,
+        },
+        // DEFAULT_ZOOM (15) is also the floor - users can zoom in and drag freely, just not out
+        // past the initial view.
+        minZoom: DEFAULT_ZOOM,
+        maxZoom: MAP_MAX_ZOOM,
+        isFractionalZoomEnabled: false,
+        // Locks panning to the default survey-segment area - strictBounds is deliberately false,
+        // since setting it true makes Maps auto-adjust (increase) zoom to keep the full bounds
+        // filling the viewport, which was overriding DEFAULT_ZOOM.
+        restriction: {
+          latLngBounds: segmentBounds,
+          strictBounds: false,
+        },
+        // Prevents Google's own POI markers (parks, buildings, etc.) from opening info windows on click.
+        clickableIcons: false,
+      });
+
+      // Center/zoom are already set explicitly above (center: segmentBounds.getCenter(), zoom:
+      // DEFAULT_ZOOM) - deliberately NOT calling map.fitBounds(segmentBounds) here, since fitBounds
+      // recalculates and overrides the zoom to whatever fits the bounds tightly (was silently bumping
+      // the effective zoom to 17 despite DEFAULT_ZOOM being 15).
+
+      this.props.onZoomChange?.(map.getZoom());
+      map.addListener("zoom_changed", () => this.props.onZoomChange?.(map.getZoom()));
+
+      this.mapRef.current = map;
+      // Clicking a cluster steps the zoom in gradually so intermediate sub-clusters
+      // stay visible instead of jumping straight to all-individual pins.
+      this.clustererRef.current = new MarkerClusterer({
+        map,
+        markers: [],
+        algorithm: new SuperClusterAlgorithm({
+          radius: 60,
+          // Keep clustering active almost all the way up so sub-clusters persist across zoom levels.
+          maxZoom: MAP_MAX_ZOOM - 2,
+        }),
+        onClusterClick: (_event, cluster, map) => {
+          const currentZoom = map.getZoom() ?? DEFAULT_ZOOM;
+          const targetZoom = Math.min(currentZoom + 2, MAP_MAX_ZOOM);
+          map.setCenter(cluster.position);
+          map.setZoom(targetZoom);
+        },
+        renderer: {
+          render: ({ count, position }) => {
+            const color = clusterColor(count);
+            const svg = window.btoa(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">` +
+                `<circle cx="22" cy="22" r="20" fill="${color}" fill-opacity="0.9" stroke="#ffffff" stroke-width="2"/>` +
+                `</svg>`
+            );
+            return new window.google.maps.Marker({
+              position,
+              icon: {
+                url: `data:image/svg+xml;base64,${svg}`,
+                scaledSize: new window.google.maps.Size(44, 44),
+              },
+              label: { text: String(count), color: "#ffffff", fontSize: "13px", fontWeight: "700" },
+              zIndex: 1000 + count,
+            });
           },
-          minZoom: 15,
-          maxZoom: MAP_MAX_ZOOM,
-          isFractionalZoomEnabled: false,
-          // Prevents Google's own POI markers (parks, buildings, etc.) from opening info windows on click.
-          clickableIcons: false,
-        });
-
-        // Focus tightly on the Rifle Range Nature Park <-> ST Engineering stretch only.
-        map.fitBounds(segmentBounds);
-
-        onZoomChange?.(map.getZoom());
-        map.addListener("zoom_changed", () => onZoomChange?.(map.getZoom()));
-
-        mapRef.current = map;
-        // Clicking a cluster steps the zoom in gradually so intermediate sub-clusters
-        // stay visible instead of jumping straight to all-individual pins.
-        clustererRef.current = new MarkerClusterer({
-          map,
-          markers: [],
-          algorithm: new SuperClusterAlgorithm({
-            radius: 60,
-            // Keep clustering active almost all the way up so sub-clusters persist across zoom levels.
-            maxZoom: MAP_MAX_ZOOM - 2,
-          }),
-          onClusterClick: (_event, cluster, map) => {
-            const currentZoom = map.getZoom() ?? DEFAULT_ZOOM;
-            const targetZoom = Math.min(currentZoom + 2, MAP_MAX_ZOOM);
-            map.setCenter(cluster.position);
-            map.setZoom(targetZoom);
-          },
-          renderer: {
-            render: ({ count, position }) => {
-              const color = clusterColor(count);
-              const svg = window.btoa(
-                `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">` +
-                  `<circle cx="22" cy="22" r="20" fill="${color}" fill-opacity="0.9" stroke="#ffffff" stroke-width="2"/>` +
-                  `</svg>`
-              );
-              return new window.google.maps.Marker({
-                position,
-                icon: {
-                  url: `data:image/svg+xml;base64,${svg}`,
-                  scaledSize: new window.google.maps.Size(44, 44),
-                },
-                label: { text: String(count), color: "#ffffff", fontSize: "13px", fontWeight: "700" },
-                zIndex: 1000 + count,
-              });
-            },
-          },
-        });
-        setMapReady(true);
-      } catch (err) {
-        if (!cancelled) {
-          console.error(err);
-          setError(err instanceof Error ? err.message : "Failed to load map");
-        }
+        },
+      });
+      this.setState({ mapReady: true });
+    } catch (err) {
+      if (!this._unmounted) {
+        console.error(err);
+        this.setState({ error: err instanceof Error ? err.message : "Failed to load map" });
       }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    }
+  }
 
   // Rebuilds pins whenever the (already-filtered) location list changes.
-  useEffect(() => {
-    const clusterer = clustererRef.current;
-    if (!clusterer || !mapReady) return;
+  syncMarkers() {
+    const clusterer = this.clustererRef.current;
+    if (!clusterer || !this.state.mapReady) return;
 
-    const markers = locations.map((location) => {
+    const markers = this.props.locations.map((location) => {
       const marker = new window.google.maps.Marker({
         position: { lat: location.lat, lng: location.lng },
         icon: {
@@ -162,19 +179,21 @@ function RifleRangeRoadMap({ locations, onZoomChange, onSelectLocation }) {
         },
       });
       // Individual (non-clustered) pins open the detail panel; clusters just zoom in.
-      marker.addListener("click", () => onSelectLocationRef.current?.(location));
+      marker.addListener("click", () => this.props.onSelectLocation?.(location));
       return marker;
     });
 
     clusterer.clearMarkers();
     clusterer.addMarkers(markers);
-  }, [locations, mapReady]);
-
-  if (error) {
-    return <div className="map-error">{error}</div>;
   }
 
-  return <div className="map-container" ref={mapContainerRef} />;
+  render() {
+    if (this.state.error) {
+      return <div className="map-error">{this.state.error}</div>;
+    }
+
+    return <div className="map-container" ref={this.mapContainerRef} />;
+  }
 }
 
 export default RifleRangeRoadMap;
